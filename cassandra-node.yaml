@@ -1,0 +1,124 @@
+heat_template_version: 2013-05-23
+
+description: |
+  This is a Heat template to deploy a single Cassandra node
+
+parameters:
+
+  # Server settings
+  hostname:
+    description: WordPress Web Server Name
+    type: string
+    default: WordPress-Web
+    constraints:
+    - length:
+        min: 1
+        max: 64
+    - allowed_pattern: "^[a-zA-Z][a-zA-Z0-9-]*$"
+      description: |
+        Must begin with a letter and contain only alphanumeric characters.
+
+  image:
+    description: Server Image used for all servers.
+    type: string
+    default: Ubuntu 12.04 LTS (Precise Pangolin)
+    constraints:
+    - allowed_values:
+      - Ubuntu 12.04 LTS (Precise Pangolin)
+      description: Must be a supported operating system.
+
+  flavor:
+    description: Web Cloud Server flavor
+    type: string
+    default: 2 GB Performance
+    constraints:
+    - allowed_values:
+      - 2 GB Performance
+      - 4 GB Performance
+      - 8 GB Performance
+      - 15 GB Performance
+      - 30 GB Performance
+      - 2GB Standard Instance
+      - 4GB Standard Instance
+      - 8GB Standard Instance
+      - 15GB Standard Instance
+      - 30GB Standard Instance
+      description: |
+        Must be a valid Rackspace Cloud Server flavor for the region you have
+        selected to deploy into.
+
+  # SSH Keypair
+  ssh_keypair_name:
+    description: "keypair name to register with Nova for the root SSH key"
+    type: string
+
+  ssh_public_key:
+    type: string
+
+  ssh_private_key:
+    type: string
+
+  #
+  seed:
+    description: Seed node IP address
+    type: string
+
+resources:
+
+  node_server:
+    type: "Rackspace::Cloud::Server"
+    properties:
+      name: { get_param: hostname }
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      key_name: { get_param: ssh_keypair_name }
+
+  node_setup:
+    type: "OS::Heat::ChefSolo"
+    depends_on: node_server
+    properties:
+      username: root
+      private_key: { get_param: ssh_private_key }
+      host: { get_attr: [node_server, accessIPv4] }
+      Berksfile: |
+        #!/usr/bin/env ruby
+        # ^syntax detection
+
+        site :opscode
+
+        cookbook 'apt'
+        cookbook 'cassandra',
+          :git => 'https://github.com/michaelklishin/cassandra-chef-cookbook',
+          :ref => '323d90cdf75a082f26b85ce0ddc16a25ff310e8e'
+        cookbook 'rax-disk-config',
+          :git => 'https://github.com/brint/rax-disk-config',
+          :ref => '4003a8ac197c1c8be5a7de0454494f6cbf31e916'
+        cookbook 'rax-firewall',
+          :git => 'https://github.com/brint/rax-firewall-cookbook',
+          :ref => 'deae4c112d7d692302cd83e96df4fbd7c8a6e22b'
+      node:
+        cassandra:
+          listen_address: { get_attr: [node_server, privateIPv4] }
+          broadcast_address: { get_attr: [node_server, privateIPv4] }
+          rpc_address: { get_attr: [node_server, privateIPv4] }
+          seeds: [ { get_param: seed } ]
+        java:
+          jdk_version: 7
+        rax:
+          firewall:
+            tcp: [7000]
+          disk_config:
+            mount_point: /var/lib/cassandra
+        run_list: ["recipe[apt]",
+                   "recipe[rax-disk-config]",
+                   "recipe[cassandra::datastax]",
+                   "recipe[rax-firewall]"]
+
+outputs:
+  public_ip:
+    description: "Public IP of Cassandra node"
+    value: { get_attr: [node_server, accessIPv4] }
+
+  private_ip:
+    description: "Private IP of Cassandra node"
+    value: { get_attr: [node_server, privateIPv4] }

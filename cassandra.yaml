@@ -1,0 +1,189 @@
+heat_template_version: 2013-05-23
+
+description: |
+  This is a Heat template to deploy a Cassandra cluster.
+
+parameter_groups:
+- label:  Server Settings
+  parameters:
+  - seed_hostname
+  - node_hostnames
+  - node_count
+  - image
+  - flavor
+  - ssh_keypair_name
+
+parameters:
+
+  # Server settings
+  seed_hostname:
+    label: Seed Hostname
+    description: Cassandra seed node hostname
+    type: string
+    default: cassandra-seed
+    constraints:
+    - length:
+        min: 1
+        max: 64
+    - allowed_pattern: "^[a-zA-Z][a-zA-Z0-9-]*$"
+      description: |
+        Must begin with a letter and contain only alphanumeric characters.
+
+  node_hostnames:
+    label: Node Hostname
+    description: Cassandra node hostnames
+    type: string
+    default: cassandra-node
+    constraints:
+    - length:
+        min: 1
+        max: 64
+    - allowed_pattern: "^[a-zA-Z][a-zA-Z0-9-]*$"
+      description: |
+        Must begin with a letter and contain only alphanumeric characters.
+
+  node_count:
+    label: Node Count
+    description: Number of Cassandra nodes
+    type: number
+    default: 2
+    constraints:
+    - range:
+        min: 2
+        max: 72
+      description: Must have at least two nodes in addition to the seed node.
+
+  image:
+    label: Operating System
+    description: Server Image used for all servers.
+    type: string
+    default: Ubuntu 12.04 LTS (Precise Pangolin)
+    constraints:
+    - allowed_values:
+      - Ubuntu 12.04 LTS (Precise Pangolin)
+      description: Must be a supported operating system.
+
+  flavor:
+    label: Server Size
+    description: Flavor for nodes
+    type: string
+    default: 2 GB Performance
+    constraints:
+    - allowed_values:
+      - 2 GB Performance
+      - 4 GB Performance
+      - 8 GB Performance
+      - 15 GB Performance
+      - 30 GB Performance
+      - 2GB Standard Instance
+      - 4GB Standard Instance
+      - 8GB Standard Instance
+      - 15GB Standard Instance
+      - 30GB Standard Instance
+      description: |
+        Must be a valid Rackspace Cloud Server flavor for the region you have
+        selected to deploy into.
+
+  # SSH Keypair naming
+  ssh_keypair_name:
+    label: Keypair Name
+    description: "keypair name to register with Nova for the root SSH key"
+    type: string
+    constraints:
+    - allowed_pattern: "^(.){1,64}$"
+      description: "Must be shorter than 64 characters or fewer."
+
+resources:
+  # SSH Key
+
+  ssh_key:
+    type: "OS::Nova::KeyPair"
+    properties:
+      name: { get_param: ssh_keypair_name }
+      save_private_key: true
+
+  # Server resources
+  seed_node:
+    type: "Rackspace::Cloud::Server"
+    properties:
+      name: { get_param: seed_hostname }
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      key_name: { get_resource: ssh_key }
+
+  seed_setup:
+    type: "OS::Heat::ChefSolo"
+    properties:
+      username: root
+      private_key: { get_attr: [ssh_key, private_key] }
+      host: { get_attr: [seed_node, accessIPv4] }
+      Berksfile: |
+        #!/usr/bin/env ruby
+        # ^syntax detection
+
+        site :opscode
+
+        cookbook 'apt'
+        cookbook 'cassandra',
+          :git => 'https://github.com/michaelklishin/cassandra-chef-cookbook',
+          :ref => '323d90cdf75a082f26b85ce0ddc16a25ff310e8e'
+        cookbook 'rax-disk-config',
+          :git => 'https://github.com/brint/rax-disk-config',
+          :ref => '4003a8ac197c1c8be5a7de0454494f6cbf31e916'
+        cookbook 'rax-firewall',
+          :git => 'https://github.com/brint/rax-firewall-cookbook',
+          :ref => 'deae4c112d7d692302cd83e96df4fbd7c8a6e22b'
+      node:
+        cassandra:
+          listen_address: { get_attr: [seed_node, privateIPv4] }
+          broadcast_address: { get_attr: [seed_node, privateIPv4] }
+          rpc_address: { get_attr: [seed_node, privateIPv4] }
+          seeds: { get_attr: [seed_node, privateIPv4] }
+        java:
+          jdk_version: 7
+        rax:
+          firewall:
+            tcp: [7000]
+          disk_config:
+            mount_point: /var/lib/cassandra
+        run_list: ["recipe[apt]",
+                   "recipe[rax-disk-config]",
+                   "recipe[cassandra::datastax]",
+                   "recipe[rax-firewall]"]
+
+  nodes:
+    type: "OS::Heat::ResourceGroup"
+    depends_on: seed_setup
+    properties:
+      count: { get_param: node_count }
+      resource_def:
+        type: https://raw.github.com/rackspace-orchestration-templates/cassandra/master/cassandra-node.yaml
+        properties:
+          hostname: { get_param: node_hostnames }
+          image: { get_param: image }
+          flavor: { get_param: flavor }
+          seed: { get_attr: [seed_node, privateIPv4] }
+          ssh_keypair_name: { get_param: ssh_keypair_name }
+          ssh_private_key: { get_attr: [ssh_key, private_key] }
+          ssh_public_key: { get_attr: [ssh_key, public_key] }
+
+outputs:
+  private_key:
+    description: "Private key for logging into all servers in this deployment"
+    value: { get_attr: [ssh_key, private_key] }
+
+  seed_node_public_ip:
+    description: "Public IP of the seed node"
+    value: { get_attr: [seed_node, accessIPv4] }
+
+  seed_node_private_ip:
+    description: "Private IP of the seed node"
+    value: { get_attr: [seed_node, privateIPv4] }
+
+  node_public_ips:
+    description: "Array of public IP addresses for all other Cassandra nodes"
+    value: { get_attr: [nodes, public_ip] }
+
+  node_private_ips:
+    description: "Array of private IP addresses for all other Cassandra nodes"
+    value: { get_attr: [nodes, private_ip] }
