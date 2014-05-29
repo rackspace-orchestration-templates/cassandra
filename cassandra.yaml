@@ -152,7 +152,7 @@ resources:
           image: { get_param: image }
           flavor: { get_param: flavor }
           seed: { get_attr: [seed_node, privateIPv4] }
-          ssh_keypair_name: { get_param: ssh_keypair_name }
+          ssh_keypair_name: { get_resource: ssh_key }
           ssh_private_key: { get_attr: [ssh_key, private_key] }
           ssh_public_key: { get_attr: [ssh_key, public_key] }
 
