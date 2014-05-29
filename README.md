@@ -27,9 +27,7 @@ Here is an example of how to deploy this template using the
 ```
 heat --os-username <OS-USERNAME> --os-password <OS-PASSWORD> --os-tenant-id \
   <TENANT-ID> --os-auth-url https://identity.api.rackspacecloud.com/v2.0/ \
-  stack-create Cassandra -f cassandra.yaml \
-  -P ssh_keypair_name=cassandra \
-  -P node_count=5
+  stack-create Cassandra -f cassandra.yaml -P node_count=5
 ```
 
 * For UK customers, use `https://lon.identity.api.rackspacecloud.com/v2.0/` as
@@ -59,9 +57,6 @@ the `-P` flag to specify a custom parameter.
   Ubuntu 12.04 LTS (Precise Pangolin))
 * `flavor`: Server size to use for all servers in this deployment (Default: 2
   GB Performance)
-* `ssh_keypair_name`: Name of the SSH keypair to create for this deployment.
-  The keypair name cannot exist in the region you are deploying, this will be a
-  new keypair.
 
 Outputs
 =======
