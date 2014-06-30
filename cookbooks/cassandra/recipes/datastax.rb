@@ -87,6 +87,10 @@ when "debian"
         action :install
         version node.cassandra.version
       end
+      apt_preference "cassandra" do
+        pin "version #{node.cassandra.version}"
+        pin_priority "700"
+      end
     end
   end
 
@@ -101,7 +105,7 @@ when "rhel"
   end
 
   yum_package "#{node.cassandra.package_name}" do
-    version node.cassandra.version
+    version "#{node.cassandra.version}-#{node.cassandra.release}"
     allow_downgrade
   end
 

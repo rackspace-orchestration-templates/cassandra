@@ -1,7 +1,7 @@
 default[:cassandra] = {
   :cluster_name => "Test Cluster",
   :initial_token => "",
-  :version => '2.0.6',
+  :version => '2.0.8',
   :service_name => 'cassandra',
   :user => "cassandra",
   :limits => {
@@ -50,7 +50,7 @@ default[:cassandra] = {
   :rpc_address                          => node[:ipaddress],
   :rpc_port                             => "9160",
   :rpc_keepalive                        => true,
-  :rpc_server_type                      => 'sync', # 'sync' or 'hsha', 
+  :rpc_server_type                      => 'sync', # 'sync' or 'hsha',
   :thrift_framed_transport_size_in_mb   => 15,
   :thrift_max_message_length_in_mb      => 16,
   :incremental_backups                  => false,
@@ -73,6 +73,7 @@ default[:cassandra] = {
   :dynamic_snitch_reset_interval_in_ms  => 600000,
   :dynamic_snitch_badness_threshold     => 0.1,
   :request_scheduler                    => 'org.apache.cassandra.scheduler.NoScheduler',
+  :phi_convict_threshold                => 8,
   :index_interval   => 128,
   :max_heap_size    => nil,
   :heap_new_size    => nil,
@@ -80,10 +81,12 @@ default[:cassandra] = {
   :vnodes           => false,
   :seeds            => [node[:ipaddress]],
   :package_name     => 'dsc20',
+  :release          => '2',
   :snitch_conf      => false,
   :enable_assertions => true,
   :jmx_server_hostname => false,
   :auto_bootstrap => true,
+  :stream_throughput_outbound_megabits_per_sec => 400
 }
 
 default[:cassandra][:jna] = {
@@ -94,7 +97,7 @@ default[:cassandra][:jna] = {
 
 default[:cassandra][:tarball] = {
   :url => "auto",
-  :md5 => "c8da1f4f546ea31ab85cfb236374863b"
+  :md5 => "2acd96eb427e8c0a8339266775d3f46c"
 }
 
 default[:cassandra][:opscenter][:server] = {
