@@ -149,7 +149,6 @@ resources:
       resource_def:
         type: { get_param: child_template }
         properties:
-          hostname: { get_param: node_hostnames }
           image: { get_param: image }
           flavor: { get_param: flavor }
           kitchen: { get_param: kitchen }
