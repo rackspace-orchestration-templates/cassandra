@@ -110,7 +110,7 @@ parameters:
   child_template:
     label: Child Template
     type: string
-    default: https://raw.github.com/rackspace-orchestration-templates/cassandra/master/cassandra-node.yaml
+    default: https://raw.githubusercontent.com/rackspace-orchestration-templates/cassandra/master/cassandra-node.yaml
 
 resources:
   # SSH Key
