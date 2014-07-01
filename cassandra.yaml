@@ -6,11 +6,20 @@ description: |
 parameter_groups:
 - label:  Server Settings
   parameters:
-  - seed_hostname
-  - node_hostnames
   - node_count
   - image
   - flavor
+
+- label: rax-dev-params
+  # These are parameters that will not be displayed in the portal. The purpose
+  # of these parameters are for users who are developing or testing newer or
+  # different setups. If any of these parameters are changed, there is a good
+  # chance this stack will fail to properly deploy.
+  parameters:
+  - seed_hostname
+  - kitchen
+  - chef_version
+  - child_template
 
 parameters:
 
@@ -20,19 +29,6 @@ parameters:
     description: Cassandra seed node hostname
     type: string
     default: cassandra-seed
-    constraints:
-    - length:
-        min: 1
-        max: 64
-    - allowed_pattern: "^[a-zA-Z][a-zA-Z0-9-]*$"
-      description: |
-        Must begin with a letter and contain only alphanumeric characters.
-
-  node_hostnames:
-    label: Node Hostname
-    description: Cassandra node hostnames
-    type: string
-    default: cassandra-node
     constraints:
     - length:
         min: 1
@@ -53,8 +49,8 @@ parameters:
       description: Must have at least two nodes in addition to the seed node.
 
   image:
-    label: Operating System
-    description: Server Image used for all servers.
+    label: Server Image
+    description: Operating system to use for your servers.
     type: string
     default: Ubuntu 12.04 LTS (Precise Pangolin)
     constraints:
@@ -64,7 +60,9 @@ parameters:
 
   flavor:
     label: Server Size
-    description: Flavor for nodes
+    description: |
+      Rackspace Cloud Server flavor to use. The size is based on the amount of
+      RAM for the provisioned server.
     type: string
     default: 2 GB Performance
     constraints:
@@ -82,6 +80,23 @@ parameters:
       description: |
         Must be a valid Rackspace Cloud Server flavor for the region you have
         selected to deploy into.
+
+  kitchen:
+    label: Kitchen
+    description: URL for the kitchen to use
+    type: string
+    default: https://github.com/rackspace-orchestration-templates/cassandra
+
+  chef_version:
+    label: Chef Version
+    description: Version of chef client to use
+    type: string
+    default: 11.12.8
+
+  child_template:
+    label: Child Template
+    type: string
+    default: https://raw.githubusercontent.com/rackspace-orchestration-templates/cassandra/master/cassandra-node.yaml
 
 resources:
   # SSH Key
@@ -106,22 +121,8 @@ resources:
       username: root
       private_key: { get_attr: [ssh_key, private_key] }
       host: { get_attr: [seed_node, accessIPv4] }
-      Berksfile: |
-        #!/usr/bin/env ruby
-        # ^syntax detection
-
-        site :opscode
-
-        cookbook 'apt'
-        cookbook 'cassandra',
-          :git => 'https://github.com/michaelklishin/cassandra-chef-cookbook',
-          :ref => '323d90cdf75a082f26b85ce0ddc16a25ff310e8e'
-        cookbook 'rax-disk-config',
-          :git => 'https://github.com/brint/rax-disk-config',
-          :ref => '4003a8ac197c1c8be5a7de0454494f6cbf31e916'
-        cookbook 'rax-firewall',
-          :git => 'https://github.com/brint/rax-firewall-cookbook',
-          :ref => 'deae4c112d7d692302cd83e96df4fbd7c8a6e22b'
+      kitchen: { get_param: kitchen }
+      chef_version: { get_param: chef_version }
       node:
         cassandra:
           listen_address: { get_attr: [seed_node, privateIPv4] }
@@ -146,11 +147,12 @@ resources:
     properties:
       count: { get_param: node_count }
       resource_def:
-        type: https://raw.github.com/rackspace-orchestration-templates/cassandra/master/cassandra-node.yaml
+        type: { get_param: child_template }
         properties:
-          hostname: { get_param: node_hostnames }
           image: { get_param: image }
           flavor: { get_param: flavor }
+          kitchen: { get_param: kitchen }
+          chef_version: { get_param: chef_version }
           seed: { get_attr: [seed_node, privateIPv4] }
           ssh_keypair_name: { get_resource: ssh_key }
           ssh_private_key: { get_attr: [ssh_key, private_key] }
@@ -158,21 +160,13 @@ resources:
 
 outputs:
   private_key:
-    description: "Private key for logging into all servers in this deployment"
+    description: SSH Private Key
     value: { get_attr: [ssh_key, private_key] }
 
   seed_node_public_ip:
-    description: "Public IP of the seed node"
+    description: Seed Node IP
     value: { get_attr: [seed_node, accessIPv4] }
 
-  seed_node_private_ip:
-    description: "Private IP of the seed node"
-    value: { get_attr: [seed_node, privateIPv4] }
-
   node_public_ips:
-    description: "Array of public IP addresses for all other Cassandra nodes"
+    description: Node IPs
     value: { get_attr: [nodes, public_ip] }
-
-  node_private_ips:
-    description: "Array of private IP addresses for all other Cassandra nodes"
-    value: { get_attr: [nodes, private_ip] }

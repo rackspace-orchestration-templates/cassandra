@@ -5,19 +5,6 @@ description: |
 
 parameters:
 
-  # Server settings
-  hostname:
-    description: WordPress Web Server Name
-    type: string
-    default: WordPress-Web
-    constraints:
-    - length:
-        min: 1
-        max: 64
-    - allowed_pattern: "^[a-zA-Z][a-zA-Z0-9-]*$"
-      description: |
-        Must begin with a letter and contain only alphanumeric characters.
-
   image:
     description: Server Image used for all servers.
     type: string
@@ -58,17 +45,28 @@ parameters:
   ssh_private_key:
     type: string
 
-  #
   seed:
     description: Seed node IP address
     type: string
+
+  kitchen:
+    label: Kitchen
+    description: URL for the kitchen to use
+    type: string
+    default: https://github.com/rackspace-orchestration-templates/cassandra
+
+  chef_version:
+    label: Chef Version
+    description: Version of chef client to use
+    type: string
+    default: 11.12.8
 
 resources:
 
   node_server:
     type: "Rackspace::Cloud::Server"
     properties:
-      name: { get_param: hostname }
+      name: cassandra-node%index%
       flavor: { get_param: flavor }
       image: { get_param: image }
       key_name: { get_param: ssh_keypair_name }
@@ -80,22 +78,8 @@ resources:
       username: root
       private_key: { get_param: ssh_private_key }
       host: { get_attr: [node_server, accessIPv4] }
-      Berksfile: |
-        #!/usr/bin/env ruby
-        # ^syntax detection
-
-        site :opscode
-
-        cookbook 'apt'
-        cookbook 'cassandra',
-          :git => 'https://github.com/michaelklishin/cassandra-chef-cookbook',
-          :ref => '323d90cdf75a082f26b85ce0ddc16a25ff310e8e'
-        cookbook 'rax-disk-config',
-          :git => 'https://github.com/brint/rax-disk-config',
-          :ref => '4003a8ac197c1c8be5a7de0454494f6cbf31e916'
-        cookbook 'rax-firewall',
-          :git => 'https://github.com/brint/rax-firewall-cookbook',
-          :ref => 'deae4c112d7d692302cd83e96df4fbd7c8a6e22b'
+      kitchen: { get_param: kitchen }
+      chef_version: { get_param: chef_version }
       node:
         cassandra:
           listen_address: { get_attr: [node_server, privateIPv4] }
