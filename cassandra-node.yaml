@@ -61,6 +61,10 @@ parameters:
     type: string
     default: 11.12.8
 
+  stack_id:
+    description: Stack ID
+    type: string
+
 resources:
 
   node_server:
@@ -70,6 +74,8 @@ resources:
       flavor: { get_param: flavor }
       image: { get_param: image }
       key_name: { get_param: ssh_keypair_name }
+      metadata:
+        rax-heat: { get_param: "stack_id" }
 
   node_setup:
     type: "OS::Heat::ChefSolo"
