@@ -116,6 +116,8 @@ resources:
       flavor: { get_param: flavor }
       image: { get_param: image }
       key_name: { get_resource: ssh_key }
+      metadata:
+        rax-heat: { get_param: "OS::stack_id" }
 
   seed_setup:
     type: "OS::Heat::ChefSolo"
@@ -151,6 +153,7 @@ resources:
       resource_def:
         type: { get_param: child_template }
         properties:
+          stack_id: { get_param: "OS::stack_id" }
           image: { get_param: image }
           flavor: { get_param: flavor }
           kitchen: { get_param: kitchen }
