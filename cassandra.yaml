@@ -154,6 +154,7 @@ resources:
         type: { get_param: child_template }
         properties:
           stack_id: { get_param: "OS::stack_id" }
+          node_hostname: cassandra-node%index%
           image: { get_param: image }
           flavor: { get_param: flavor }
           kitchen: { get_param: kitchen }
