@@ -108,6 +108,7 @@ parameters:
 
   child_template:
     label: Child Template
+    description: URL to the child template for deploying Cassandra nodes.
     type: string
     default: https://raw.githubusercontent.com/rackspace-orchestration-templates/cassandra/master/cassandra-node.yaml
 
