@@ -21,14 +21,14 @@ parameters:
   flavor:
     description: Web Cloud Server flavor
     type: string
-    default: 2 GB Performance
+    default: 2 GB General Purpose v1
     constraints:
     - allowed_values:
-      - 2 GB Performance
-      - 4 GB Performance
-      - 8 GB Performance
-      - 15 GB Performance
-      - 30 GB Performance
+      - 2 GB General Purpose v1
+      - 4 GB General Purpose v1
+      - 8 GB General Purpose v1
+      - 15 GB I/O v1
+      - 30 GB I/O v1
       - 2GB Standard Instance
       - 4GB Standard Instance
       - 8GB Standard Instance
