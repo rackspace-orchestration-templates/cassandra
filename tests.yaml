@@ -15,6 +15,7 @@ test-cases:
             key_filename: tmp/private_key
             hosts: { get_output: seed_node_public_ip } # Fetch from output-list of stack
             tasks:
+              - artifacts
               - check
             abort_on_prompts: True
             connection_attempts: 3
@@ -30,6 +31,7 @@ test-cases:
             key_filename: tmp/private_key
             hosts: { get_output: node_public_ips } # Fetch from output-list of stack
             tasks:
+              - artifacts
               - check
             abort_on_prompts: True
             connection_attempts: 3
@@ -55,6 +57,7 @@ test-cases:
             key_filename: tmp/private_key
             hosts: { get_output: seed_node_public_ip } # Fetch from output-list of stack
             tasks:
+              - artifacts
               - check
             abort_on_prompts: True
             connection_attempts: 3
@@ -70,6 +73,7 @@ test-cases:
             key_filename: tmp/private_key
             hosts: { get_output: node_public_ips } # Fetch from output-list of stack
             tasks:
+              - artifacts
               - check
             abort_on_prompts: True
             connection_attempts: 3
