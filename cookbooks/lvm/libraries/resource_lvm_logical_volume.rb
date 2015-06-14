@@ -2,7 +2,7 @@
 # Cookbook Name:: lvm
 # Library:: resource_lvm_logical_volume
 #
-# Copyright 2009-2013, Opscode, Inc.
+# Copyright 2009-2013, Chef Software, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ class Chef
         @resource_name = :lvm_logical_volume
         @action = :create
         @allowed_actions.push :create
+        @allowed_actions.push :resize
         @provider = Chef::Provider::LvmLogicalVolume
       end
 
@@ -103,6 +104,20 @@ class Chef
       def filesystem(arg = nil)
         set_or_return(
           :filesystem,
+          arg,
+          :kind_of => String
+        )
+      end
+
+      # Attribute: filesystem_params - the file system parameters
+      #
+      # @param arg [String] the file system parameters
+      #
+      # @return [String] the file system parameters
+      #
+      def filesystem_params(arg = nil)
+        set_or_return(
+          :filesystem_params,
           arg,
           :kind_of => String
         )
@@ -224,6 +239,20 @@ class Chef
           arg,
           :kind_of => [Integer, String],
           :equal_to => [2..120, 'auto', 'none'].flatten!
+        )
+      end
+
+      # Attribute: take_up_free_space - whether to have the LV take up the remainder of free space on the VG
+      #
+      # @param arg [Boolean] whether to have the LV take up the remainder of free space
+      #
+      # @return [Boolean] if the LV should take the remainder of free space
+      #
+      def take_up_free_space(arg = nil)
+        set_or_return(
+          :take_up_free_space,
+          arg,
+          :kind_of => [TrueClass, FalseClass]
         )
       end
     end

@@ -1,5 +1,7 @@
 # Apache Cassandra Chef Cookbook
 
+[![Build Status](https://travis-ci.org/michaelklishin/cassandra-chef-cookbook.svg?branch=master)](https://travis-ci.org/michaelklishin/cassandra-chef-cookbook)
+
 This is an OpsCode Chef cookbook for Apache Cassandra ([DataStax
 Community Edition](http://www.datastax.com/products/community)) as
 well as DataStax Enterprise.
@@ -17,21 +19,28 @@ you find missing!
 
 This cookbook currently provides
 
- * Cassandra 2.0.x via tarballs
- * Cassandra 2.0.x or 1.2.x (DataStax Community Edition) via packages.
+ * Cassandra 2.x.x via tarball
+ * Cassandra 2.x.x or 1.2.x (DataStax Community Edition) via packages.
  * DataStax Enterprise (DSE)
 
 ## Supported OS Distributions
 
  * Ubuntu 11.04 through 14.04 via DataStax apt repo.
  * RHEL/CentOS via DataStax yum repo.
+ * RHEL/CentOS/Amazon via tarball
+
+## Support JDK Versions
+
+Cassandra 2.x requires JDK 7+, Oracle JDK is recommended.
 
 ## Recipes
 
-Two provided recipes are `cassandra::tarball` and `cassandra::datastax`. The former uses official tarballs
+Two provided recipes are `cassandra::tarball` and `cassandra::datastax`. The former uses official tarball
 and thus can be used to provision any specific version.
 
 The latter uses DataStax repository via packages. You can install different versions (ex. dsc20 for v2.0) available in the repository by altering `:package_name` attribute (`dsc20` by default).
+
+include_recipe `cassandra` uses  `cassandra::datastax` as the default.
 
 ### DataStax Enterprise
 
@@ -39,28 +48,53 @@ You can also install the DataStax Enterprise edition by adding `node[:cassandra]
 
 There are also recipes for DataStax opscenter installation ( `opscenter_agent_tarball`, `opscenter_agent_datastax` and `opscenter_server` ) along with attributes available for override (see below).
 
-### JNA Support
+### JNA Support (Prior C* version 2.1.0)
 
-The optional recipe cassandra::jna will install the jna.jar in the
+Attribute `node[:cassandra][:setup_jna]` will install the jna.jar in the
 `/usr/share/java/jna.jar`, and create a symbolic link to it on
 `#{cassandra.lib\_dir}/jna.jar`, according to the [DataStax
 documentation](http://www.datastax.com/documentation/cassandra/1.2/webhelp/cassandra/install/installJnaDeb.html).
 
 ## Core Attributes
 
+ * `node[:cassandra][:cluster_name]` (default: none): Name of the cluster to create. This is required.
  * `node[:cassandra][:version]` (default: a recent patch version): version to provision
- * `node[:cassandra][:tarball][:url]` and `node[:cassandra][:tarball][:md5]` specify tarball URL and MD5 chechsum used by the `cassandra::tarball` recipe.
+ * `node[:cassandra][:tarball][:url]` and `node[:cassandra][:tarball][:md5]` specify tarball URL and MD5 check sum used by the `cassandra::tarball` recipe.
   * Setting `node[:cassandra][:tarball][:url]` to "auto" (default) will download the tarball of the specified version from the Apache repository.
+ * `node[:cassandra][:setup_user]` (default: true): create user/group for Cassandra node process
  * `node[:cassandra][:user]`: username Cassandra node process will use
+ * `node[:cassandra][:group]`: groupname Cassandra node process will use
  * `node[:cassandra][:heap_new_size]` set JVM `-Xmn`; if nil, defaults to `min(100MB * num_cores, 1/4 * heap size)`
  * `node[:cassandra][:max_heap_size]` set JVM `-Xms` and `-Xmx`; if nil, defaults to `max(min(1/2 ram, 1024MB), min(1/4 ram, 8GB))`
  * `node[:cassandra][:installation_dir]` (default: `/usr/local/cassandra`): installation directory
- * `node[:cassandra][:data_root_dir]` (default: `/var/lib/cassandra`): data directory root
+ * `node[:cassandra][:root_dir]` (default: `/var/lib/cassandra`): data directory root
  * `node[:cassandra][:log_dir]` (default: `/var/log/cassandra`): log directory
- * `node[:cassandra][:listen_address]` (default: node IP address): address clients will use to connect to the node
+ * `node[:cassandra][:listen_address]` (default: node[:ipaddress]): address clients will use to connect to the node
  * `node[:cassandra][:broadcast_address]` (default: node IP address): address to broadcast to other Cassandra nodes
- * `node[:cassandra][:rpc_address]` (default: node IP address): address to bind the RPC interface
+ * `node[:cassandra][:rpc_address]` (default: 0.0.0.0): address to bind the RPC interface
  * `node[:cassandra][:seeds]` (default: `[node[:ipaddress]]`): an array of nodes this node will contact to discover cluster topology
+ * `node[:cassandra][:notify_restart]` (default: false): notify Cassandra service restart upon resource update
+  * Setting `node[:cassandra][:notify_restart]` to true will restart Cassandra service upon resource change
+ * `node[:cassandra][:setup_jna]` (default: true): installs jna.jar
+ * `node[:cassandra][:skip_jna]` (default: false): (2.1.0 and up only) removes jna.jar, adding '-Dcassandra.boot_without_jna=true' for low-memory C* installations 
+ * `node[:cassandra][:pid_dir]` (default: true): pid directory for Cassandra node process for `cassandra::tarball` recipe
+ * `node[:cassandra][:dir_mode]` (default: 0755): default permission set for Cassandra node directory / files
+ * `node[:cassandra][:service_action]` (default: [:enable, :start]): default service actions for the service
+ * `node[:cassandra][:install_java]` (default: true): whether to run the open source java cookbook
+ * `node[:cassandra][:cassandra_old_version_20]` (default: ): attribute used in cookbook to determine C* version older or newer than 2.1
+ * `node[:cassandra][:log_config_files]` (default: ): log framework configuration files name array
+ * `node[:cassandra][:jamm_version]` (default: ): jamm lib version
+ * `node[:cassandra][:setup_jamm]` (default: false): install the jamm jar file
+
+### Yum Attributes
+
+ * `node[:cassandra][:yum][:repo]` (default: datastax): name of the repo from which to install
+ * `node[:cassandra][:yum][:description]` (default: "DataStax Repo for Apache Cassandra"): description of the repo
+ * `node[:cassandra][:yum][:baseurl]` (default: "http://rpm.datastax.com/community"): repo url
+ * `node[:cassandra][:yum][:mirrorlist]` (default: nil): a mirrorlist file
+ * `node[:cassandra][:yum][:gpgcheck]` (default: false): whether to use `gpgcheck`
+ * `node[:cassandra][:yum][:enabled]` (default: true): whether the repo is enabled by default
+ * `node[:cassandra][:yum][:options]` (default: ""): Additional options to pass to `yum_package`
 
 ### OpsCenter Attributes
 
@@ -68,6 +102,7 @@ documentation](http://www.datastax.com/documentation/cassandra/1.2/webhelp/cassa
  * `node[:cassandra][:opscenter][:server][:package_name]` (default: opscenter-free)
  * `node[:cassandra][:opscenter][:server][:port]` (default: 8888)
  * `node[:cassandra][:opscenter][:server][:interface]` (default: 0.0.0.0)
+ * `node[:cassandra][:opscenter][:server][:authentication]` (default: false)
 
 #### DataStax Ops Center Agent Tarball attributes
  * `node[:cassandra][:opscenter][:agent][:download_url]` (default: "") Required. You need to specify
@@ -79,6 +114,7 @@ documentation](http://www.datastax.com/documentation/cassandra/1.2/webhelp/cassa
  * `node[:cassandra][:opscenter][:agent][:binary_name]` (default: `opscenter-agent`) Introduced since Datastax changed agent binary name from opscenter-agent to datastax-agent. **Make sure to set it right if you are updating to 4.0.2**
  * `node[:cassandra][:opscenter][:agent][:server_host]` (default: "" ). If left empty, will use search to get IP by opscenter `server_role` role.
  * `node[:cassandra][:opscenter][:agent][:server_role]` (default: `opscenter_server`). Will be use for opscenter server IP lookup if `:server_host` is not set.
+ * `node[:cassandra][:opscenter][:agent][:use_chef_search]` (default: `true`). Determines whether chef search will be used for locating the data agent server.
  * `node[:cassandra][:opscenter][:agent][:use_ssl]` (default: `true`)
 
 #### DataStax Ops Center Agent Datastax attributes
@@ -92,6 +128,23 @@ documentation](http://www.datastax.com/documentation/cassandra/1.2/webhelp/cassa
  * `node[:cassandra][:rackdc][:dc]` (default: "") The datacenter to specify in the cassandra-rackdc.properties file. (GossipingPropertyFileSnitch only)
  * `node[:cassandra][:rackdc][:rack]` (default: "") The rack to specify in the cassandra-rackdc.properties file (GossipingPropertyFileSnitch only)
  * `node[:cassandra][:rackdc][:prefer_local]` (default: "false") Whether the snitch will prefer the internal ip when possible, as the Ec2MultiRegionSnitch does. (GossipingPropertyFileSnitch only)
+
+
+### Ulimit Attributes
+
+ * `node[:cassandra][:limits][:memlock]` (default: "unlimited"): memory ulimit for Cassandra node process
+ * `node[:cassandra][:limits][:nofile]` (default: 48000): file ulimit for Cassandra node process
+ * `node[:cassandra][:limits][:nproc]` (default: "unlimited"): process ulimit for Cassandra node process
+
+
+### Logback Attributes
+
+ * `node[:cassandra][:logback][:file][:max_file_size]` (default: "20MB"): logback File appender log file rotation size
+ * `node[:cassandra][:logback][:file][:max_index]` (default: 20): logback File appender log files max_index
+ * `node[:cassandra][:logback][:file][:min_index]` (default: 1): logback File appender log files min_index
+ * `node[:cassandra][:logback][:file][:pattern]` (default: "%-5level [%thread] %date{ISO8601} %F:%L - %msg%n"): logback File appender log pattern
+ * `node[:cassandra][:logback][:stdout][:enable]` (default: true): enable logback STDOUT appender
+ * `node[:cassandra][:logback][:stdout][:pattern]` (default: "%-5level %date{HH:mm:ss,SSS} %msg%n"): logback STDOUT appender log pattern
 
 
 ### Advanced Attributes
@@ -125,6 +178,7 @@ documentation](http://www.datastax.com/documentation/cassandra/1.2/webhelp/cassa
  * `node[:cassandra][:broadcast_address]` Address to broadcast to other Cassandra nodes.  If '', will use listen\_address (default: '')
  * `node[:cassandra][:start_native_transport]` Whether to start the native transport server (default: true)
  * `node[:cassandra][:native_transport_port]` Port for the CQL native transport to listen for clients on (default: 9042)
+ * `node[:cassandra][:native_transport_max_threads]` The number of threads for handling transport requests when the native protocol is used (default: 128)
  * `node[:cassandra][:start_rpc]` Whether to start the Thrift RPC server (default: true)
  * `node[:cassandra][:rpc_address]` Address to bind the Thrift RPC server to. Leave blank to lookup IP from hostname.  0.0.0.0 to listen on all interfaces.  (default: node[:ipaddress])
  * `node[:cassandra][:rpc_port]` Port for Thrift RPC server to listen for clients on (default: 9160)
@@ -137,6 +191,7 @@ documentation](http://www.datastax.com/documentation/cassandra/1.2/webhelp/cassa
  * `node[:cassandra][:auto_snapshot]` Take a snapshot before keyspace truncation or dropping of column families.  If you set this value to false, you will lose data on truncation or drop (default: true)
  * `node[:cassandra][:column_index_size_in_kb]` Add column indexes to a row after its contents reach this size (default: 64)
  * `node[:cassandra][:in_memory_compaction_limit_in_mb]` Size limit for rows being compacted in memory (default: 64)
+ * `node[:cassandra][:concurrent_compactors]` Sets the number of concurrent compaction processes allowed to run simultaneously on a node. (default: nil, which will result in one compaction process per CPU core)
  * `node[:cassandra][:multithreaded_compaction]` Enable multithreaded compaction. Uses one thread per core, plus one thread per sstable being merged. (default: false)
  * `node[:cassandra][:compaction_throughput_mb_per_sec]` Throttle compaction to this total system throughput. Generally should be 16-32 times data insertion rate (default: 16)
  * `node[:cassandra][:compaction_preheat_key_cache]` Track cached row keys during compaction and re-cache their new positions in the compacted sstable. Disable if you use really large key caches (default: true)
@@ -153,13 +208,48 @@ documentation](http://www.datastax.com/documentation/cassandra/1.2/webhelp/cassa
  * `node[:cassandra][:dynamic_snitch_reset_interval_in_ms]` How often to reset all host scores, allowing a bad host to possibly recover (default: 600000)
  * `node[:cassandra][:dynamic_snitch_badness_threshold]` Allow 'pinning' of replicas to hosts in order to increase cache capacity. (default: 0.1)
  * `node[:cassandra][:request_scheduler]` Class to schedule incoming client requests (default: org.apache.cassandra.scheduler.NoScheduler)
- * `node[:cassandra][:index_interval]` index\_interval controls the sampling of entries from the primrary row index in terms of space versus time (default: 128).
+ * `node[:cassandra][:index_interval]` index\_interval controls the sampling of entries from the primary row index in terms of space versus time (default: 128).
  * `node[:cassandra][:auto_bootstrap]` Setting this parameter to false prevents the new nodes from attempting to get all the data from the other nodes in the data center. (default: true).
  * `node[:cassandra][:enable_assertions]` Enable JVM assertions.  Disabling this in production will give a modest performance benefit (around 5%) (default: true).
  * `node[:cassandra][:xss]`  JVM per thread stack-size (-Xss option) (default: 256k).
  * `node[:cassandra][:jmx_server_hostname]` java.rmi.server.hostname option for JMX interface, necessary to set when you have problems connecting to JMX) (default: false).
+ * `node[:cassandra][:broadcast_rpc_address]` RPC address to broadcast to drivers and other Cassandra nodes (default: node[:ipaddress])
+ * `node[:cassandra][:tombstone_failure_threshold]` tombstone attribute, check C* documentation for more info (default: 100000)
+ * `node[:cassandra][:tombstone_warn_threshold]` tombstone attribute, check C* documentation for more info (default: 1000)
+ * `node[:cassandra][:sstable_preemptive_open_interval_in_mb]` This helps to smoothly transfer reads between the sstables, reducing page cache churn and keeping hot rows hot (default: 50)
+ * `node[:cassandra][:memtable_allocation_type]` Specify the way Cassandra allocates and manages memtable memory (default: heap_buffers)
+ * `node[:cassandra][:index_summary_capacity_in_mb]` A fixed memory pool size in MB for for SSTable index summaries. If left empty, this will default to 5% of the heap size (default: '')
+ * `node[:cassandra][:index_summary_resize_interval_in_minutes]` How frequently index summaries should be resampled (default: 60)
+ * `node[:cassandra][:concurrent_counter_writes]` Concurrent writes, since writes are almost never IO bound, the ideal number of "concurrent_writes" is dependent on the number of cores in your system; (8 * number_of_cores) (default: 32)
+ * `node[:cassandra][:counter_cache_save_period]` Duration in seconds after which Cassandra should save the counter cache (keys only) (default: 7200)
+ * `node[:cassandra][:counter_cache_size_in_mb]` Counter cache helps to reduce counter locks' contention for hot counter cells. Default value is empty to make it "auto" (min(2.5% of Heap (in MB), 50MB)). Set to 0 to disable counter cache. (default: '')
+ * `node[:cassandra][:counter_write_request_timeout_in_ms]` How long the coordinator should wait for counter writes to complete (default: 5000)
+ * `node[:cassandra][:commit_failure_policy]` policy for commit disk failures (default: stop)
+ * `node[:cassandra][:cas_contention_timeout_in_ms]` How long a coordinator should continue to retry a CAS operation that contends with other proposals for the same row (default: 1000)
+ * `node[:cassandra][:batch_size_warn_threshold_in_kb]` Log WARN on any batch size exceeding this value. 5kb per batch by default (default: 5)
+ * `node[:cassandra][:batchlog_replay_throttle_in_kb]` Maximum throttle in KBs per second, total. This will be reduced proportionally to the number of nodes in the cluster (default: 1024)
+ * `node[:cassandra][:heap_dump]` -XX:+HeapDumpOnOutOfMemoryError JVM parameter (default: true)
+ * `node[:cassandra][:heap_dump_dir]` Directory where heap dumps will be placed (default: nil, which will use cwd)
+ * `node[:cassandra][:vnodes]` enable vnodes. (default: true)
+ * `node[:cassandra][:num_tokens]` set the desired number of tokens. (default: 256)
 
-### JNA Attributes
+Attributes used to define JBOD functionality
+
+* `default['cassandra']['jbod']['slices']` - defines the number of jbod slices while each represents data directory. By default disables with nil.  
+* `default['cassandra']['jbod']['dir_name_prefix']` - defines the data directory prefix
+For example if you want to connect 4 EBS disks as a JBOD slices the names will be in the following format: data1,data2,data3,data4
+cassandra.yaml.erb will generate automatically entry per data_dir location
+Please note: this functionality is not creating volumes or directories. It takes care of configuration. You can use same parameters with AWS cookbook to create EBS volumes and map to directories.  
+
+Attributes for fine tuning CMS/ParNew, the GC algorithm recommended for Cassandra deployments:
+
+ * `node[:cassandra][:gc_survivor_ratio]` -XX:SurvivorRatio JVM parameter (default: 8)
+ * `node[:cassandra][:gc_max_tenuring_threshold]` -XX:MaxTenuringThreshold JVM parameter (default: 1)
+ * `node[:cassandra][:gc_cms_initiating_occupancy_fraction]` -XX:CMSInitiatingOccupancyFraction JVM parameter (default: 75)
+
+Descriptions for these JVM parameters can be found [here](http://www.oracle.com/technetwork/java/javase/tech/vmoptions-jsp-140102.html#PerformanceTuning) and [here](http://www.oracle.com/technetwork/java/javase/gc-tuning-6-140523.html#cms.starting_a_cycle).
+
+### JNA Attributes (Prior C* version 2.1.0)
 
  *  `node[:cassandra][:jna][:base_url]` The base url to fetch the JNA jar (default: https://github.com/twall/jna/tree/4.0/dist)
  *  `node[:cassandra][:jna][:jar_name]` The name of the jar to download from the base url. (default: jna.jar)
@@ -176,13 +266,17 @@ Create a branch, make the changes, then submit a pull request on GitHub
 with a brief description of what you've done and why your changes
 should be included.
 
+Write new resource/attribute description to `README.md`
+
+Run the tests (`rake`), ensuring they all pass.
+
 
 ## Copyright & License
 
-Michael S. Klishin, Travis CI Development Team, 2012-2014.
+Michael S. Klishin, Travis CI Development Team, and [contributors](https://github.com/michaelklishin/cassandra-chef-cookbook/graphs/contributors),
+2012-2014.
 
 Released under the [Apache 2.0 License](http://www.apache.org/licenses/LICENSE-2.0.html).
 
 
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/michaelklishin/cassandra-chef-cookbook/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
-

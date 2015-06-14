@@ -54,7 +54,7 @@ the `-P` flag to specify a custom parameter.
 * `node_count`: Number of nodes to deploy in addition to the seed, minium 2.
   (Default: 2)
 * `image`: Operating system to use on all servers in this deployment (Default:
-  Ubuntu 12.04 LTS (Precise Pangolin))
+  Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM))
 * `flavor`: Server size to use for all servers in this deployment (Default: 2
   GB Performance)
 

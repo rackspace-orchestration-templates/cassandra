@@ -1,3 +1,7 @@
+#
+# This file is managed by Chef.
+# Do NOT modify this file directly.
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,7 +22,7 @@
 # (%l is slower.)
 
 # output messages into a rolling log file as well as stdout
-log4j.rootLogger=INFO,stdout,R
+log4j.rootLogger=<%= node.cassandra.rootlogger %>
 
 # stdout
 log4j.appender.stdout=org.apache.log4j.ConsoleAppender
@@ -41,3 +45,8 @@ log4j.appender.R.File=<%= node.cassandra.log_dir %>/system.log
 
 # Adding this to avoid thrift logging disconnect errors.
 log4j.logger.org.apache.thrift.server.TNonblockingServer=ERROR
+
+<% node.cassandra.log4j.each do |key, value| %> 
+<%= key %>=<%= value %>
+<% end %>
+
