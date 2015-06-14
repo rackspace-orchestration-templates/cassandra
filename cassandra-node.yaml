@@ -92,6 +92,7 @@ resources:
       chef_version: { get_param: chef_version }
       node:
         cassandra:
+          cluster_name: { get_param: "stack_id" }
           listen_address: { get_attr: [node_server, networks, private, 0] }
           broadcast_address: { get_attr: [node_server, networks, private, 0] }
           rpc_address: { get_attr: [node_server, networks, private, 0] }
