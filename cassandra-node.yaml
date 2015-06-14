@@ -107,6 +107,7 @@ resources:
         run_list: ["recipe[apt]",
                    "recipe[rax-disk-config]",
                    "recipe[cassandra::datastax]",
+                   "recipe[firewall]",
                    "recipe[rax-firewall]"]
 
 outputs:
