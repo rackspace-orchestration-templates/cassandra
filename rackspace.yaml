@@ -21,7 +21,17 @@ instructions: |
   Started](http://wiki.apache.org/cassandra/GettingStarted) guide. This
   document covers the basics for starting to use your new Cassandra multinode
   cluster. Client connections should be made to the IP address associated with
-  the eth1 interface of each server.
+  the eth1 interface of each server. Example:
+
+  ```bash
+  root@cassandra-seed:~# cqlsh 10.176.203.154
+  Connected to 4b1a2eb6-5b7d-48e4-a4bc-640a8f478bb0 at 10.176.203.154:9160.
+  [cqlsh 4.1.1 | Cassandra 2.0.11 | CQL spec 3.1.1 | Thrift protocol 19.39.0]
+  Use HELP for help.
+  cqlsh>
+  ```
+
+  The cluster name will be the same as your stack ID.
 
   #### Logging In via SSH
   The private key provided in the passwords section can be used to login as
