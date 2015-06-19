@@ -101,7 +101,7 @@ resources:
           jdk_version: 7
         rax:
           firewall:
-            tcp: [7000]
+            tcp: [22, 7000]
           disk_config:
             mount_point: /var/lib/cassandra
         run_list: ["recipe[apt]",
