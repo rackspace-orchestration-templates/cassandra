@@ -1,0 +1,5 @@
+AllCops:
+  Exclude:
+    - metadata.rb
+    - test/integration/default/serverspec/default_spec.rb
+

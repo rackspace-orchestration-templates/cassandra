@@ -65,10 +65,10 @@ parameters:
       Server image used for all servers that are created as a part of this
       deployment
     type: string
-    default: Ubuntu 12.04 LTS (Precise Pangolin) (PVHVM)
+    default: Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)
     constraints:
     - allowed_values:
-      - Ubuntu 12.04 LTS (Precise Pangolin) (PVHVM)
+      - Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)
       description: Must be a supported operating system.
 
   flavor:
@@ -104,7 +104,7 @@ parameters:
     label: Chef Version
     description: Version of chef client to use
     type: string
-    default: 11.12.8
+    default: 12.3.0
 
   child_template:
     label: Child Template
@@ -141,6 +141,7 @@ resources:
       chef_version: { get_param: chef_version }
       node:
         cassandra:
+          cluster_name: { get_param: "OS::stack_id" }
           listen_address: { get_attr: [seed_node, networks, private, 0] }
           broadcast_address: { get_attr: [seed_node, networks, private, 0] }
           rpc_address: { get_attr: [seed_node, networks, private, 0] }
@@ -155,6 +156,7 @@ resources:
         run_list: ["recipe[apt]",
                    "recipe[rax-disk-config]",
                    "recipe[cassandra::datastax]",
+                   "recipe[firewall]",
                    "recipe[rax-firewall]"]
 
   nodes:

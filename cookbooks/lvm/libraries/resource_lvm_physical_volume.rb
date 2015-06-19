@@ -2,7 +2,7 @@
 # Cookbook Name:: lvm
 # Library:: resource_lvm_physical_volume
 #
-# Copyright 2009-2013, Opscode, Inc.
+# Copyright 2009-2013, Chef Software, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ class Chef
         @resource_name = :lvm_physical_volume
         @action = :create
         @allowed_actions.push :create
+        @allowed_actions.push :resize
         @provider = Chef::Provider::LvmPhysicalVolume
       end
 

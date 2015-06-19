@@ -1,6 +1,6 @@
 lvm Cookbook
 ============
-[![Build Status](https://secure.travis-ci.org/opscode-cookbooks/lvm.png?branch=master)](http://travis-ci.org/opscode-cookbooks/lvm)
+[![Build Status](https://secure.travis-ci.org/chef-cookbooks/lvm.png?branch=master)](http://travis-ci.org/chef-cookbooks/lvm)
 
 Installs lvm2 package and includes resources for managing LVM. The default recipe simply installs LVM and the supporting Ruby gem. The cookbook includes providers for managing LVMs.
 
@@ -24,6 +24,10 @@ Manages LVM physical volumes.
   <tr>
     <td>:create</td>
     <td>(default) Creates a new physical volume</td>
+  </tr>
+  <tr>
+    <td>:resize</td>
+    <td>Resize an existing physical volume</td>
   </tr>
 </table>
 
@@ -63,6 +67,10 @@ Manages LVM logical volumes.
   <tr>
     <td>:create</td>
     <td>(default) Creates a new logical volume</td>
+  </tr>
+  <tr>
+    <td>:resize</td>
+    <td>Resize an existing logical volume</td>
   </tr>
 </table>
 
@@ -106,6 +114,12 @@ Manages LVM logical volumes.
     <td>filesystem</td>
     <td>The format for the file system</td>
     <td><tt>'ext4'</tt></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>filesystem_params</td>
+    <td>Optional parameters to use when formatting the file system</td>
+    <td><tt>'-j -L log -m 2 -i 10240 -J size=400 -b 4096'</tt></td>
     <td></td>
   </tr>
   <tr>
@@ -161,6 +175,11 @@ Manages LVM logical volumes.
     <td><tt>'auto'</tt></td>
     <td></td>
   </tr>
+  <td>take_up_free_space</td>
+    <td>whether to have the LV take up the remainder of free space on the VG. Only valid for resize action</td>
+    <td><tt>true</tt></td>
+    <td>false</td>
+  </tr>
 </table>
 
 ##### Examples
@@ -191,6 +210,10 @@ Manages LVM volume groups.
   <tr>
     <td>:create</td>
     <td>(default) Creates a new volume group</td>
+  </tr>
+  <tr>
+    <td>:extend</td>
+    <td>Extend an existing volume group to include new physical volumes</td>
   </tr>
 </table>
 
@@ -298,7 +321,7 @@ This section details "quick development" steps. For a detailed explanation, see 
 
 1. Clone this repository from GitHub:
 
-        $ git clone git@github.com:opscode-cookbooks/lvm.git
+        $ git clone git@github.com:chef-cookbooks/lvm.git
 
 2. Create a git branch
 
@@ -325,11 +348,11 @@ This section details "quick development" steps. For a detailed explanation, see 
 
 License and Authors
 -------------------
-- Author:: Joshua Timberman <joshua@opscode.com>
+- Author:: Joshua Timberman <joshua@chef.io>
 - Author:: Greg Symons <gsymons@drillinginfo.com>
 
 ```text
-Copyright:: 2011, Opscode, Inc
+Copyright:: 2011, Chef Software, Inc
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

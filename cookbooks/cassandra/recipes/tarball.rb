@@ -1,5 +1,5 @@
 #
-# Cookbook Name:: cassandra-server
+# Cookbook Name:: cassandra
 # Recipe:: tarball
 # Copyright 2012, Michael S. Klishin <michaelklishin@me.com>
 #
@@ -21,161 +21,262 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-include_recipe "java"
+node.default['cassandra']['source_dir'] = '/usr/local/apache-cassandra-' + node['cassandra']['version']
 
-#
-# User accounts
-#
+node.default['cassandra']['installation_dir'] = '/usr/local/cassandra'
 
-user node.cassandra.user do
-  comment "Cassandra Server user"
-  home    node.cassandra.installation_dir
-  shell   "/bin/bash"
-  action  :create
+# node['cassandra']['installation_dir'] subdirs
+node.default['cassandra']['bin_dir']   = ::File.join(node['cassandra']['installation_dir'], 'bin')
+node.default['cassandra']['lib_dir']   = ::File.join(node['cassandra']['installation_dir'], 'lib')
+node.default['cassandra']['conf_dir']  = ::File.join(node['cassandra']['installation_dir'], 'conf')
+
+# commit log, data directory, saved caches and so on are all stored under the data root. MK.
+# node['cassandra']['root_dir sub dirs
+node.default['cassandra']['data_dir'] = ::File.join(node['cassandra']['root_dir'], 'data')
+node.default['cassandra']['commitlog_dir'] = ::File.join(node['cassandra']['root_dir'], 'commitlog')
+node.default['cassandra']['saved_caches_dir'] = ::File.join(node['cassandra']['root_dir'], 'saved_caches')
+
+include_recipe 'java' if node['cassandra']['install_java']
+
+# 1. Validate node['cassandra']['cluster_name
+Chef::Application.fatal!("attribute node['cassandra']['cluster_name'] not defined") unless node['cassandra']['cluster_name']
+
+# 2. Manage C* Service User
+include_recipe 'cassandra::user'
+
+# 3. Download the tarball to /tmp
+require 'tmpdir'
+
+td = Dir.tmpdir
+tmp = ::File.join(td, "apache-cassandra-#{node['cassandra']['version']}-bin.tar.gz")
+tarball_dir = ::File.join(td, "apache-cassandra-#{node['cassandra']['version']}")
+
+# if tarball url set to 'auto' use default url
+# according to node cassandra version
+if node['cassandra']['tarball']['url'] == 'auto'
+  node.default['cassandra']['tarball']['url'] = "http://archive.apache.org/dist/cassandra/#{node['cassandra']['version']}/apache-cassandra-#{node['cassandra']['version']}-bin.tar.gz"
 end
 
-group node.cassandra.user do
-  (m = []) << node.cassandra.user
-  members m
-  action :create
+service 'cassandra' do
+  service_name node['cassandra']['service_name']
+  action :stop
+  only_if { ::File.exist?("/etc/init.d/#{node['cassandra']['service_name']}") && !::File.exist?(node['cassandra']['source_dir']) }
 end
 
-# 1. Download the tarball to /tmp
-require "tmpdir"
-
-td          = Dir.tmpdir
-tmp         = File.join(td, "apache-cassandra-#{node.cassandra.version}-bin.tar.gz")
-tarball_dir = File.join(td, "apache-cassandra-#{node.cassandra.version}")
-
-#if tarball url set to 'auto' use default url 
-#according to node cassandra version
-if node.cassandra.tarball.url == "auto"
-    node.default[:cassandra][:tarball][:url] = "http://archive.apache.org/dist/cassandra/#{node[:cassandra][:version]}/apache-cassandra-#{node[:cassandra][:version]}-bin.tar.gz"
+remote_file tmp do
+  source node['cassandra']['tarball']['url']
+  not_if { ::File.exist?(node['cassandra']['source_dir']) }
 end
 
-remote_file(tmp) do
-  source node.cassandra.tarball.url
-
-  not_if "which cassandra"
-end
-
-# 2. Extract it
-# 3. Copy to /usr/local/cassandra, update permissions
-bash "extract #{tmp}, move it to #{node.cassandra.installation_dir}" do
-  user "root"
-  cwd  "/tmp"
+# 4. Extract it to node['cassandra']['source_dir and update one time ownership permissions
+bash 'extract_cassandra_source' do
+  user 'root'
+  cwd td
 
   code <<-EOS
-    rm -rf #{node.cassandra.installation_dir}
-    tar xfz #{tmp}
-    mv --force #{tarball_dir} #{node.cassandra.installation_dir}
+    tar xzf #{tmp}
+    mv --force #{tarball_dir} #{node['cassandra']['source_dir']}
+    chown -R #{node['cassandra']['user']}:#{node['cassandra']['group']} #{node['cassandra']['source_dir']}
+    chmod #{node['cassandra']['dir_mode']} #{node['cassandra']['source_dir']}
   EOS
 
-  creates "#{node.cassandra.installation_dir}/bin/cassandra"
+  not_if  { ::File.exist?(node['cassandra']['source_dir']) }
+  creates ::File.join(node['cassandra']['source_dir'], 'bin', 'cassandra')
+  action :run
 end
 
-[node.cassandra.data_root_dir, node.cassandra.log_dir].each do |dir|
+# 5. Link current version node['cassandra']['source_dir to node['cassandra']['installation_dir
+link node['cassandra']['installation_dir'] do
+  to node['cassandra']['source_dir']
+  owner node['cassandra']['user']
+  group node['cassandra']['group']
+end
+
+# 6. Create and Change Ownership C* directories
+[node['cassandra']['log_dir'],
+ node['cassandra']['pid_dir'],
+ node['cassandra']['lib_dir'],
+ node['cassandra']['root_dir'],
+ node['cassandra']['conf_dir']
+].each do |dir|
   directory dir do
-    owner     node.cassandra.user
-    group     node.cassandra.user
+    owner node['cassandra']['user']
+    group node['cassandra']['group']
     recursive true
-    action    :create
+    mode 0755
   end
 end
 
-[node.cassandra.lib_dir,
- node.cassandra.data_root_dir,
- node.cassandra.conf_dir,
- File.join(node.cassandra.installation_dir, "data"),
- File.join(node.cassandra.installation_dir, "system"),
- node.cassandra.installation_dir].each do |dir|
-  # Chef sets permissions only to leaf nodes, so we have to use a Bash script. MK.
-  bash "chown -R #{node.cassandra.user}:#{node.cassandra.user} #{dir}" do
-    user "root"
-
-    code "mkdir -p #{dir} && chown -R #{node.cassandra.user}:#{node.cassandra.user} #{dir}"
+# 7. Create and Change Ownership C* log files
+[::File.join(node['cassandra']['log_dir'], 'system.log'),
+ ::File.join(node['cassandra']['log_dir'], 'boot.log')
+].each do |f|
+  file f do
+    owner node['cassandra']['user']
+    group node['cassandra']['group']
+    mode 0644
   end
 end
 
-
-# 4. Install config files and binaries
-%w(cassandra.yaml cassandra-env.sh log4j-server.properties).each do |f|
-  template File.join(node.cassandra.conf_dir, f) do
+# 8. Create/Update C* Configuration Files / Binaries
+%w(cassandra.yaml cassandra-env.sh).each do |f|
+  template ::File.join(node['cassandra']['conf_dir'], f) do
     source "#{f}.erb"
-    owner node.cassandra.user
-    group node.cassandra.user
-    mode  0644
+    owner node['cassandra']['user']
+    group node['cassandra']['group']
+    mode 0644
+    notifies :restart, 'service[cassandra]', :delayed if node['cassandra']['notify_restart']
   end
 end
 
-if node.cassandra.snitch_conf
-  template File.join(node.cassandra.conf_dir, "cassandra-topology.properties") do
-    source "cassandra-topology.properties.erb"
-    owner node.cassandra.user
-    group node.cassandra.user
-    mode  0644
-    variables ({ :snitch => node.cassandra.snitch_conf })
+node['cassandra']['log_config_files'].each do |f|
+  template ::File.join(node['cassandra']['conf_dir'], f) do
+    cookbook node['cassandra']['templates_cookbook']
+    source "#{f}.erb"
+    owner node['cassandra']['user']
+    group node['cassandra']['group']
+    mode '0644'
+    notifies :restart, 'service[cassandra]', :delayed if node['cassandra']['notify_restart']
   end
 end
 
-if node.cassandra.attribute?("rackdc")
-  template File.join(node.cassandra.conf_dir, "cassandra-rackdc.properties") do
-    source "cassandra-rackdc.properties.erb"
-    owner node.cassandra.user
-    group node.cassandra.user
-    mode  0644
-    variables ({ :rackdc => node.cassandra.rackdc })
-  end
+template ::File.join(node['cassandra']['conf_dir'], 'cassandra-topology.properties') do
+  source 'cassandra-topology.properties.erb'
+  owner node['cassandra']['user']
+  group node['cassandra']['group']
+  mode 0644
+  variables(:snitch => node['cassandra']['snitch_conf'])
+  notifies :restart, 'service[cassandra]', :delayed if node['cassandra']['notify_restart']
+  only_if { node['cassandra'].attribute?('snitch_conf') }
 end
 
-template File.join(node.cassandra.bin_dir, "cassandra-cli") do
-  source "cassandra-cli.erb"
-  owner node.cassandra.user
-  group node.cassandra.user
-  mode  0755
+template ::File.join(node['cassandra']['conf_dir'], 'cassandra-rackdc.properties') do
+  source 'cassandra-rackdc.properties.erb'
+  owner node['cassandra']['user']
+  group node['cassandra']['group']
+  mode 0644
+  variables(:rackdc => node['cassandra']['rackdc'])
+  notifies :restart, 'service[cassandra]', :delayed if node['cassandra']['notify_restart']
+  only_if { node['cassandra'].attribute?('rackdc') }
 end
 
-template "/usr/local/bin/cqlsh" do
-  source "cqlsh.erb"
-  owner node.cassandra.user
-  group node.cassandra.user
-  mode  0755
+template ::File.join(node['cassandra']['bin_dir'], 'cassandra-cli') do
+  source 'cassandra-cli.erb'
+  owner node['cassandra']['user']
+  group node['cassandra']['group']
+  mode 0755
 end
 
-# 5. Symlink
-%w(cassandra cassandra-shell cassandra-cli).each do |f|
+template ::File.join(node['cassandra']['installation_dir'], 'bin', 'cqlsh') do
+  source 'cqlsh.erb'
+  owner node['cassandra']['user']
+  group node['cassandra']['group']
+  mode 0755
+  not_if { ::File.exist?(::File.join(node['cassandra']['installation_dir'], 'bin', 'cqlsh'))  }
+end
+
+# 9. Symlink C* Binaries
+%w(cqlsh cassandra cassandra-shell cassandra-cli).each do |f|
   link "/usr/local/bin/#{f}" do
-    owner node.cassandra.user
-    group node.cassandra.user
-    to    "#{node.cassandra.installation_dir}/bin/#{f}"
-    not_if  "test -L /usr/local/bin/#{f}"
+    owner node['cassandra']['user']
+    group node['cassandra']['group']
+    to ::File.join(node['cassandra']['installation_dir'], 'bin', f)
+    only_if { ::File.exist?(::File.join(node['cassandra']['installation_dir'], 'bin', f)) }
   end
 end
 
-
-# 6. Know Your Limits
-template "/etc/security/limits.d/#{node.cassandra.user}.conf" do
-  source "cassandra-limits.conf.erb"
-  owner node.cassandra.user
-  mode  0644
+# 10. Set C* Service User ulimits
+user_ulimit node['cassandra']['user'] do
+  filehandle_limit node['cassandra']['limits']['nofile']
+  process_limit node['cassandra']['limits']['nproc']
+  memory_limit node['cassandra']['limits']['memlock']
+  notifies :restart, 'service[cassandra]', :delayed if node['cassandra']['notify_restart']
 end
 
-ruby_block "make sure pam_limits.so is required" do
+pam_limits = 'session    required   pam_limits.so'
+ruby_block 'require_pam_limits.so' do
   block do
-    fe = Chef::Util::FileEdit.new("/etc/pam.d/su")
-    fe.search_file_replace_line(/# session    required   pam_limits.so/, "session    required   pam_limits.so")
+    fe = Chef::Util::FileEdit.new('/etc/pam.d/su')
+    fe.search_file_replace_line(/# #{pam_limits}/, pam_limits)
     fe.write_file
   end
+  only_if { ::File.readlines('/etc/pam.d/su').grep(/# #{pam_limits}/).any? }
 end
 
-# 6. init.d Service
-template "/etc/init.d/cassandra" do
-  source "cassandra.init.erb"
+# 11. init.d Service
+template "/etc/init.d/#{node['cassandra']['service_name']}" do
+  source "#{node['platform_family']}.cassandra.init.erb"
   owner 'root'
-  mode  0755
+  group 'root'
+  mode 0755
+  notifies :restart, 'service[cassandra]', :delayed if node['cassandra']['notify_restart']
 end
 
-service "cassandra" do
+# 12. Create /usr/share/java if missing
+directory '/usr/share/java' do
+  owner 'root'
+  group 'root'
+  mode 0755
+end
+
+# 13. Setup JNA
+remote_file '/usr/share/java/jna.jar' do
+  source "#{node['cassandra']['jna']['base_url']}/#{node['cassandra']['jna']['jar_name']}"
+  checksum node['cassandra']['jna']['sha256sum']
+  only_if { node['cassandra']['setup_jna'] }
+end
+
+link "#{node['cassandra']['lib_dir']}/jna.jar" do
+  to '/usr/share/java/jna.jar'
+  notifies :restart, 'service[cassandra]', :delayed if node['cassandra']['notify_restart']
+  only_if { node['cassandra']['setup_jna'] }
+end
+
+# Set up the metrics library, if wanted
+template ::File.join(node['cassandra']['conf_dir'], 'cassandra-metrics.yaml') do
+  cookbook node['cassandra']['templates_cookbook']
+  source 'cassandra-metrics.yaml.erb'
+  owner node['cassandra']['user']
+  group node['cassandra']['group']
+  mode 0644
+  notifies :restart, 'service[cassandra]', :delayed if node['cassandra']['notify_restart']
+  variables(:yaml_config => hash_to_yaml_string(node['cassandra']['metrics_reporter']['config']))
+  only_if { node['cassandra']['metrics_reporter']['enabled'] }
+end
+
+remote_file "/usr/share/java/#{node['cassandra']['metrics_reporter']['jar_name']}" do
+  source node['cassandra']['metrics_reporter']['jar_url']
+  checksum node['cassandra']['metrics_reporter']['sha256sum']
+  only_if { node['cassandra']['metrics_reporter']['enabled'] }
+end
+
+link "#{node['cassandra']['lib_dir']}/#{node['cassandra']['metrics_reporter']['name']}.jar" do
+  to "/usr/share/java/#{node['cassandra']['metrics_reporter']['jar_name']}"
+  notifies :restart, 'service[cassandra]', :delayed if node['cassandra']['notify_restart']
+  only_if { node['cassandra']['metrics_reporter']['enabled'] }
+end
+
+# Setup jamm lib
+remote_file "/usr/share/java/#{node['cassandra']['jamm']['jar_name']}" do
+  source "#{node['cassandra']['jamm']['base_url']}/#{node['cassandra']['jamm']['jar_name']}"
+  checksum node['cassandra']['jamm']['sha256sum']
+  only_if { node['cassandra']['setup_jamm'] }
+end
+
+link "#{node['cassandra']['lib_dir']}/#{node['cassandra']['jamm']['jar_name']}" do
+  to "/usr/share/java/#{node['cassandra']['jamm']['jar_name']}"
+  notifies :restart, 'service[cassandra]', :delayed if node['cassandra']['notify_restart']
+  only_if { node['cassandra']['setup_jamm'] }
+end
+
+# 15. Ensure C* Service is running
+service 'cassandra' do
   supports :start => true, :stop => true, :restart => true, :status => true
-  action [:enable, :start]
+  service_name node['cassandra']['service_name']
+  action node['cassandra']['service_action']
+end
+
+# 15. Cleanup
+remote_file tmp do
+  action :delete
 end
