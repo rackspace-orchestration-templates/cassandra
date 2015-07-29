@@ -39,3 +39,9 @@ instructions: |
   Linux](http://www.rackspace.com/knowledge_center/article/logging-in-with-a-ssh-private-key-on-linuxmac)
   as well as [Windows using
   PuTTY](http://www.rackspace.com/knowledge_center/article/logging-in-with-a-ssh-private-key-on-windows).
+
+description: |
+  Multiple Linux servers running
+  [Apache Cassandra 2.0](http://cassandra.apache.org/).
+  This configuration will build a single seed server with two or
+  more additional Cassandra nodes.
