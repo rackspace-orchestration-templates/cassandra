@@ -10,11 +10,8 @@ reach-info:
 hidden_outputs:
   - private_key
 abstract: |
-  Multiple Linux servers running [Apache Cassandra
-  2.0](http://cassandra.apache.org/).
-
-  This configuration will build a single seed server with two or more
-  additional Cassandra nodes.
+  Cassandra is an open-source database system that can handle large amounts of
+  data distributed over multiple servers.
 instructions: |
   #### Getting Started
   If you're new to Cassandra, check out the [Cassandra Getting
