@@ -1,7 +1,10 @@
 heat_template_version: 2013-05-23
 
 description: |
-  This is a Heat template to deploy a Cassandra cluster.
+  Multiple Linux servers running
+  [Apache Cassandra 2.0](http://cassandra.apache.org/).
+  This configuration will build a single seed server with two or
+  more additional Cassandra nodes.
 
 parameter_groups:
 - label:  Server Settings
